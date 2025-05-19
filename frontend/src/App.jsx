@@ -1,7 +1,5 @@
 import "./App.css";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import AddEmployee from "./pages/AddEmployee";
-import EditEmployee from "./pages/EditEmployee";
 
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -37,10 +35,7 @@ function App() {
             <Route path="/admin/profile" element={<AdminProfile />} />
             <Route path="/admin/employees" element={<AdminEmployeeList />} />
             <Route path="/admin/users" element={<AdminAllUsersList />} />
-            {/* <Route path="/admin/departments" element={<Department />} /> */}
-            <Route path="/admin/add-employee" element={<AddEmployee />} />
             <Route path="/admin/add-user" element={<AdminNewUser />} />
-            <Route path="/admin/edit-employee/:id" element={<EditEmployee />} />
             <Route path="/admin/logs" element={<AdminLogs />} />
           </Route>
    
