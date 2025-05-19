@@ -24,7 +24,7 @@ import AdminAllUsersList from "./pages/AdminAllUsers";
 
 function App() {
   return (
-    <Router>
+    <Router>  
       <Routes>
 
         <Route element={<PublicRoute />}>
