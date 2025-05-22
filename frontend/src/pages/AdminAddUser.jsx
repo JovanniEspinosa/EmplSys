@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const API_URL = 'http://localhost/emsystem/backend/index.php?action=';
 
@@ -23,6 +24,16 @@ const AdminAddUser = () => {
   const [roles, setRoles] = useState([]);
   const [responseMsg, setResponseMsg] = useState('');
   const [isSuccess, setIsSuccess] = useState(false); // State to track success or error
+
+  const [confirmationModal, setConfirmationModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "",
+    confirmColor: "",
+    icon: null,
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     fetchDepartments();
@@ -71,29 +82,44 @@ const AdminAddUser = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    try {
-      const res = await axios.post(`${API_URL}add`, formData);
-      setResponseMsg(res.data.message);
-      setIsSuccess(true); // Set success state
-      setFormData({
-        first_name: '',
-        last_name: '',
-        dept_id: '',
-        role_id: '',
-        job_title: '',
-        email: '',
-        contact_number: '',
-        address: '',
-        username: '',
-        password: '',
-        profile_picture: '',
-      }); // Reset form
-    } catch (error) {
-      console.error('Error adding employee:', error);
-      setResponseMsg('Failed to add employee.');
-      setIsSuccess(false); // Set error state
-    }
+    
+    // Show confirmation modal
+    setConfirmationModal({
+      isOpen: true,
+      title: "Add New Employee",
+      message: `Are you sure you want to add ${formData.first_name} ${formData.last_name} as a new employee? They will be able to access the system with the provided credentials.`,
+      confirmText: "Add Employee",
+      confirmColor: "purple",
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+      ),
+      onConfirm: async () => {
+        try {
+          const res = await axios.post(`${API_URL}add`, formData);
+          setResponseMsg(res.data.message);
+          setIsSuccess(true);
+          setFormData({
+            first_name: '',
+            last_name: '',
+            dept_id: '',
+            role_id: '',
+            job_title: '',
+            email: '',
+            contact_number: '',
+            address: '',
+            username: '',
+            password: '',
+            profile_picture: '',
+          });
+        } catch (error) {
+          console.error('Error adding employee:', error);
+          setResponseMsg('Failed to add employee.');
+          setIsSuccess(false);
+        }
+      },
+    });
   };
 
   return (
@@ -291,6 +317,18 @@ const AdminAddUser = () => {
           </form>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmationModal.isOpen}
+        onClose={() => setConfirmationModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmationModal.onConfirm}
+        title={confirmationModal.title}
+        message={confirmationModal.message}
+        confirmText={confirmationModal.confirmText}
+        confirmColor={confirmationModal.confirmColor}
+        icon={confirmationModal.icon}
+      />
     </div>
   );
 };

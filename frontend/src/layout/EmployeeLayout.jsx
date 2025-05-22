@@ -64,64 +64,54 @@ const EmployeeLayout = () => {
 
   return (
     <div className="flex flex-col min-h-screen w-full font-sans">
-      <header className="w-full bg-white shadow-lg border-b border-gray-100">
+      <header className="w-full bg-gradient-to-r from-[#260058] to-[#3e0091] text-white shadow-lg">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center gap-4">
-            <div className="flex items-center gap-5">
-              <div className="w-11 h-11 bg-gray-100 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 font-bold text-lg overflow-hidden border-2 border-gray-200 shadow-lg transition-transform hover:scale-105">
-                {user?.avatar ? (
-                  <img
-                    src={`data:image/jpeg;base64,${user?.avatar}`}
-                    alt="Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                )}
-              </div>
+            <div className="flex items-center gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-gray-800 tracking-wide">
+                <span className="text-xl font-bold tracking-wide">
                   Employee Panel
                 </span>
-                <span className="text-xs text-gray-500">{user?.username}</span>
+                <span className="text-sm text-purple-200">{user?.username}</span>
               </div>
             </div>
 
             {/* Navigation Links */}
-            <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
+            <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
               <Link
                 to="/employee/home"
-                className="relative px-3 py-2 transition-all duration-200 hover:text-gray-900 group"
+                className={`relative px-3 py-2 transition-all duration-200 hover:text-purple-200 ${
+                  location.pathname === '/employee/home'
+                    ? 'text-white after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-purple-300 after:rounded-full'
+                    : 'text-purple-100'
+                }`}
               >
                 Home
-                {location.pathname === '/employee/home' && (
-                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gray-900 rounded-full"></span>
-                )}
               </Link>
               <Link
                 to="/employee/profile"
-                className="relative px-3 py-2 transition-all duration-200 hover:text-gray-900 group"
+                className={`relative px-3 py-2 transition-all duration-200 hover:text-purple-200 ${
+                  location.pathname === '/employee/profile'
+                    ? 'text-white after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-purple-300 after:rounded-full'
+                    : 'text-purple-100'
+                }`}
               >
                 Profile
-                {location.pathname === '/employee/profile' && (
-                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gray-900 rounded-full"></span>
-                )}
               </Link>
             </nav>
 
-            <div className="flex items-center gap-6">
-              <button
-                onClick={handleLogout}
-                className="px-5 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full transition-all duration-200 flex items-center gap-2 hover:shadow-lg"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Logout
-              </button>
-            </div>
+            <button
+              onClick={handleLogout}
+              className="px-5 py-2 text-sm font-medium text-purple-900 bg-white hover:bg-purple-50 rounded-lg transition-all duration-200 flex items-center gap-2 hover:shadow-lg"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Logout
+            </button>
           </div>
         </div>
       </header>

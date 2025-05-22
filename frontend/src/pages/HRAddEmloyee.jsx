@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import ConfirmationModal from "../components/ConfirmationModal";
 
 const API_URL = "http://localhost/emsystem/backend/index.php?action=";
 
@@ -9,6 +10,15 @@ const HRAddEmployee = () => {
   const [avatar, setAvatar] = useState(null);
   const [status, setStatus] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [confirmationModal, setConfirmationModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "",
+    confirmColor: "",
+    icon: null,
+    onConfirm: () => {},
+  });
 
   const [department, setDepartment] = useState("");
   const [departments, setDepartments] = useState([]);
@@ -29,33 +39,55 @@ const HRAddEmployee = () => {
   const handleAddEmployee = async (e) => {
     e.preventDefault();
 
-    try {
-      const response = await axios.post(
-        `${API_URL}addNewUser`,
-        {
-          username,
-          password,
-          role: "employee", // hardcoded role
-          avatar: avatar === null ? "" : avatar,
-          dept_id: department,
-        },
-        {
-          withCredentials: true,
-        }
-      );
+    setConfirmationModal({
+      isOpen: true,
+      title: "Add New Employee",
+      message: `Are you sure you want to create a new employee account with username "${username}"? They will be able to access the system with the provided credentials.`,
+      confirmText: "Create Account",
+      confirmColor: "purple",
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+      ),
+      onConfirm: async () => {
+        try {
+          const response = await axios.post(
+            `${API_URL}addNewUser`,
+            {
+              username,
+              password,
+              role: "employee", // hardcoded role
+              avatar: avatar === null ? "" : avatar,
+              dept_id: department,
+            },
+            {
+              withCredentials: true,
+            }
+          );
 
-      if (response.data.type === "success") {
-        setUsername("");
-        setAvatar("");
-        setPassword("");
-        setDepartment("");
-        setPreviewUrl(null);
-        setStatus(true);
-      }
-    } catch (error) {
-      console.error(error);
-      setStatus(false);
-    }
+          if (response.data.type === "success") {
+            setUsername("");
+            setAvatar("");
+            setPassword("");
+            setDepartment("");
+            setPreviewUrl(null);
+            setStatus(true);
+            // Auto-hide the status message after 3 seconds
+            setTimeout(() => {
+              setStatus(null);
+            }, 3000);
+          }
+        } catch (error) {
+          console.error(error);
+          setStatus(false);
+          // Auto-hide the status message after 3 seconds
+          setTimeout(() => {
+            setStatus(null);
+          }, 3000);
+        }
+      },
+    });
   };
 
   const handleFileChange = (e) => {
@@ -211,6 +243,18 @@ const HRAddEmployee = () => {
           </form>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmationModal.isOpen}
+        onClose={() => setConfirmationModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmationModal.onConfirm}
+        title={confirmationModal.title}
+        message={confirmationModal.message}
+        confirmText={confirmationModal.confirmText}
+        confirmColor={confirmationModal.confirmColor}
+        icon={confirmationModal.icon}
+      />
     </div>
   );
 };

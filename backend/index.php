@@ -117,7 +117,7 @@ function loginUser()
     $username = $data['username'];
     $password = $data['password'];
 
-    $sql = "SELECT user_id, role, password FROM users WHERE username = ?";
+    $sql = "SELECT user_id, role, password, status FROM users WHERE username = ?";
     $stmt = $connect->prepare($sql);
 
     $stmt->bind_param('s', $username);
@@ -125,13 +125,15 @@ function loginUser()
 
     $result = $stmt->get_result();
 
-
     if ($result->num_rows > 0) {
-
         $user = $result->fetch_assoc();
 
-        if (password_verify($password, $user['password'])) {
-
+        if ($user['status'] === 'disabled') {
+            $response = [
+                'type' => 'error',
+                'message' => 'Account is disabled. Please contact administrator.'
+            ];
+        } else if (password_verify($password, $user['password'])) {
             $_SESSION['user_id'] = $user['user_id'];
             $_SESSION['role'] = $user['role'];
 
@@ -290,36 +292,36 @@ function removeEmployee()
     $data = json_decode(file_get_contents("php://input"), true);
 
     $employee_id = $data['user_id'];
+    $action = $data['action'];
+    $new_status = $action === 'enable' ? 'active' : 'disabled';
 
     $user_id = $_SESSION['user_id'];
     $currentUserRole = $_SESSION['role'];
 
-    $sql = "DELETE FROM users WHERE user_id = ?";
+    $sql = "UPDATE users SET status = ? WHERE user_id = ?";
     $stmt = $connect->prepare($sql);
-    $stmt->bind_param("s", $employee_id);
+    $stmt->bind_param("ss", $new_status, $employee_id);
 
     if ($stmt->execute()) {
         $stmt->close();
 
-        $action = "delete_user";
-        $details = "User_ID $user_id ($currentUserRole) removed user_id '$employee_id'";
+        $action_type = $action . "_user";
+        $details = "User_ID $user_id ($currentUserRole) {$action}d user_id '$employee_id'";
 
         $logSql = "INSERT INTO activity_logs (user_id, action, details) VALUES (?, ?, ?)";
         $logStmt = $connect->prepare($logSql);
-        $logStmt->bind_param("iss", $user_id, $action, $details);
+        $logStmt->bind_param("iss", $user_id, $action_type, $details);
         $logStmt->execute();
         $logStmt->close();
 
-
         $response = [
             "type" => "success",
-            "message" => " User Removed"
+            "message" => "User " . ucfirst($action) . "d"
         ];
     } else {
-
         $response = [
             "type" => "error",
-            "message" => "Failed to remove user"
+            "message" => "Failed to " . $action . " user"
         ];
     }
 
@@ -768,16 +770,16 @@ function fetchAllEmployees()
     u.user_id, 
     u.username, 
     u.created_at, 
+    u.status,
     d.dept_name 
 FROM users u
-LEFT JOIN departments d ON u.dept_id = d.dept_id WHERE role = "employee" ';
+LEFT JOIN departments d ON u.dept_id = d.dept_id WHERE role = "employee"';
     $stmt = $connect->prepare($sql);
     $stmt->execute();
 
     $result = $stmt->get_result();
     $employees = [];
     while ($row = $result->fetch_assoc()) {
-
         $row['avatar'] = base64_encode($row['avatar']);
         $employees[] = $row;
     }
@@ -795,6 +797,7 @@ function fetchAllUsers()
                 u.user_id, 
                 u.username, 
                 u.created_at, 
+                u.status,
                 d.dept_name 
             FROM users u
             LEFT JOIN departments d ON u.dept_id = d.dept_id';

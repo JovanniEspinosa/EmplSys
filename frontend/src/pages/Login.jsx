@@ -8,12 +8,14 @@ const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isDisabled, setIsDisabled] = useState(false);
 
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
+    setIsDisabled(false);
 
     try {
       const response = await axios.post(
@@ -44,6 +46,9 @@ const Login = () => {
             navigate("/");
         }
       } else {
+        if (response.data.message.includes('disabled')) {
+          setIsDisabled(true);
+        }
         setError(response.data.message);
       }
     } catch (err) {
@@ -57,8 +62,19 @@ const Login = () => {
         <h2 className="text-center text-3xl font-bold text-gray-800 mb-8">Welcome Back</h2>
 
         {error && (
-          <div className="mb-6 px-4 py-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl text-center">
-            {error}
+          <div className={`mb-6 px-4 py-3 ${isDisabled ? 'bg-orange-50 border border-orange-100 text-orange-700' : 'bg-red-50 border border-red-100 text-red-600'} text-sm rounded-xl`}>
+            <div className="flex items-center justify-center gap-2">
+              {isDisabled ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              <span className="font-medium">{error}</span>
+            </div>
           </div>
         )}
 

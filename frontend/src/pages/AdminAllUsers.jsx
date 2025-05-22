@@ -1,6 +1,7 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
+import ConfirmationModal from "../components/ConfirmationModal";
 
 const API_URL = "http://localhost/emsystem/backend/index.php?action=";
 
@@ -65,11 +66,21 @@ function AdminAllUsersList() {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [editModal, setEditModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [confirmationModal, setConfirmationModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "",
+    confirmColor: "",
+    icon: null,
+    onConfirm: () => {},
+  });
 
   const [selectedRole, setSelectedRole] = useState("");
-
   const [departments, setDepartments] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const fetchDepartments = async () => {
     try {
@@ -91,34 +102,67 @@ function AdminAllUsersList() {
     fetchDepartments();
   }, []);
 
-  const handleDelete = async (user_id) => {
-    if (window.confirm("Are you sure you want to delete this employee?")) {
-      try {
-        const response = await axios.post(
-          `${API_URL}removeEmployee`,
-          {
-            user_id: user_id,
-          },
-          { withCredentials: true }
-        );
+  const handleDelete = async (user_id, currentStatus) => {
+    const action = currentStatus === 'active' ? 'disable' : 'enable';
+    
+    setConfirmationModal({
+      isOpen: true,
+      title: `${action.charAt(0).toUpperCase() + action.slice(1)} User`,
+      message: `Are you sure you want to ${action} this user? ${currentStatus === 'active' ? 'They will no longer be able to access the system.' : 'They will regain access to the system.'}`,
+      confirmText: action.charAt(0).toUpperCase() + action.slice(1),
+      confirmColor: currentStatus === 'active' ? 'red' : 'green',
+      icon: currentStatus === 'active' ? (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+        </svg>
+      ) : (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      onConfirm: async () => {
+        try {
+          const response = await axios.post(
+            `${API_URL}removeEmployee`,
+            {
+              user_id: user_id,
+              action: action
+            },
+            { withCredentials: true }
+          );
 
-        if (response.data.type === "success") {
-          alert(response.data.message);
-          fetchAllUsers();
-        } else {
-          alert(response.data.message);
-          fetchAllUsers();
+          if (response.data.type === "success") {
+            alert(response.data.message);
+            fetchAllUsers();
+          } else {
+            alert(response.data.message);
+            fetchAllUsers();
+          }
+        } catch (error) {
+          console.error(`Error ${action}ing user:`, error);
+          alert(`Failed to ${action} user`);
         }
-      } catch (error) {
-        console.error("Error deleting employee:", error);
-        alert("Failed to delete employee");
-      }
-    }
+      },
+    });
   };
 
-  const handleEditModal = async (employee) => {
-    setEditModal(true);
-    setSelectedUser(employee);
+  const handleEditModal = async (user) => {
+    setConfirmationModal({
+      isOpen: true,
+      title: "Edit User",
+      message: "Do you want to edit this user's information?",
+      confirmText: "Edit",
+      confirmColor: "blue",
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+      ),
+      onConfirm: () => {
+        setEditModal(true);
+        setSelectedUser(user);
+      },
+    });
   };
 
   const handleChange = (e) => {
@@ -164,12 +208,50 @@ function AdminAllUsersList() {
 
   const roles = [...new Set(users.map((u) => u.role))];
 
+  const filteredUsers = users?.filter((user) => {
+    const departmentMatch = selectedDepartment
+      ? user.dept_name === selectedDepartment
+      : true;
+    const roleMatch = selectedRole 
+      ? user.role === selectedRole 
+      : true;
+    const statusMatch = statusFilter === "all" 
+      ? true 
+      : user.status === statusFilter;
+    const searchMatch = searchQuery.trim() === "" 
+      ? true 
+      : user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.dept_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.role.toLowerCase().includes(searchQuery.toLowerCase());
+    return departmentMatch && roleMatch && statusMatch && searchMatch;
+  });
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="p-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-4">All Users</h1>
-          
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-gray-800">All Users</h1>
+            
+            {/* Search Bar */}
+            <div className="w-72">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#260058]"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* New Filter UI */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <div className="flex items-center justify-between">
@@ -234,19 +316,46 @@ function AdminAllUsersList() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
 
-              <div className="flex items-center gap-3 text-sm text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-                <span>
-                  Showing: <span className="font-medium text-gray-900">
-                    {users.filter(user => 
-                      (selectedDepartment ? user.dept_name === selectedDepartment : true) &&
-                      (selectedRole ? user.role === selectedRole : true)
-                    ).length}
-                  </span> users
-                </span>
+          {/* Status Filter UI */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mt-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">Filter by Status:</span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setStatusFilter("all")}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      statusFilter === "all"
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter("active")}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      statusFilter === "active"
+                        ? "bg-green-600 text-white"
+                        : "bg-green-50 text-green-600 hover:bg-green-100"
+                    }`}
+                  >
+                    Active
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter("disabled")}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      statusFilter === "disabled"
+                        ? "bg-red-600 text-white"
+                        : "bg-red-50 text-red-600 hover:bg-red-100"
+                    }`}
+                  >
+                    Disabled
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -265,16 +374,6 @@ function AdminAllUsersList() {
                         </svg>
                       </div>
                       <span className="text-base font-bold text-gray-800">Avatar</span>
-                    </div>
-                  </th>
-                  <th className="px-4 py-4 text-left">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-gray-100 rounded-md">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                        </svg>
-                      </div>
-                      <span className="text-base font-bold text-gray-800">ID</span>
                     </div>
                   </th>
                   <th className="px-4 py-4 text-left">
@@ -324,98 +423,124 @@ function AdminAllUsersList() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                         </svg>
                       </div>
+                      <span className="text-base font-bold text-gray-800">Status</span>
+                    </div>
+                  </th>
+                  <th className="px-4 py-4 text-left">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-gray-100 rounded-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                        </svg>
+                      </div>
                       <span className="text-base font-bold text-gray-800">Actions</span>
                     </div>
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {users
-                  ?.filter(
-                    (user) =>
-                      (selectedDepartment
-                        ? user.dept_name === selectedDepartment
-                        : true) &&
-                      (selectedRole ? user.role === selectedRole : true)
-                  )
-                  .map((user) => (
-                    <tr key={user.user_id} className="hover:bg-gray-50/50 transition-colors border-b border-gray-100 last:border-b-0">
-                      <td className="px-4 py-4">
-                        <div className="flex justify-center">
-                          {user.avatar ? (
-                            <div className="relative group">
-                              <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-all duration-200 transform hover:scale-105">
-                                <img
-                                  src={`data:image/jpeg;base64,${user.avatar}`}
-                                  alt="Profile"
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
+                {filteredUsers.map((user) => (
+                  <tr key={user.user_id} 
+                      className={`hover:bg-gray-50/50 transition-colors border-b border-gray-100 last:border-b-0 ${
+                        user.status === 'disabled' ? 'bg-gray-50' : ''
+                      }`}>
+                    <td className="px-4 py-4">
+                      <div className="flex justify-center">
+                        {user.avatar ? (
+                          <div className="relative group">
+                            <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-all duration-200 transform hover:scale-105">
+                              <img
+                                src={`data:image/jpeg;base64,${user.avatar}`}
+                                alt="Profile"
+                                className="w-full h-full object-cover"
+                              />
                             </div>
-                          ) : (
-                            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 font-medium text-lg border-2 border-gray-200">
-                              {user.username.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-                          #{user.user_id}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-col">
-                          <span className="text-base font-semibold text-gray-800">{user.username}</span>
-                          <span className="text-sm text-gray-500">User</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="px-4 py-2 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="px-4 py-2 rounded-full text-sm font-medium bg-purple-50 text-purple-700 border border-purple-100">
-                          {user?.dept_name || "No Department"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-gray-900">{new Date(user.created_at).toLocaleDateString()}</span>
-                          <span className="text-xs text-gray-500">{new Date(user.created_at).toLocaleTimeString()}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex gap-3">
-                          {user.user_id === currentUser.user_id ? (
-                            <span className="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700">Current User</span>
-                          ) : (
-                            <>
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 font-medium text-lg border-2 border-gray-200">
+                            {user.username.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-base font-semibold text-gray-800">{user.username}</span>
+                        <span className="text-sm text-gray-500">User</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="px-4 py-2 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                        {user.role}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="px-4 py-2 rounded-full text-sm font-medium bg-purple-50 text-purple-700 border border-purple-100">
+                        {user?.dept_name || "No Department"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-900">{new Date(user.created_at).toLocaleDateString()}</span>
+                        <span className="text-xs text-gray-500">{new Date(user.created_at).toLocaleTimeString()}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+                        user.status === 'active' 
+                          ? 'bg-green-50 text-green-700 border border-green-100'
+                          : 'bg-red-50 text-red-700 border border-red-100'
+                      }`}>
+                        {user.status === 'active' ? 'Active' : 'Disabled'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex gap-3">
+                        {user.user_id === currentUser.user_id ? (
+                          <span className="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700">Current User</span>
+                        ) : (
+                          <>
+                            {user.status === 'active' && (
                               <button
                                 className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-2"
-                                onClick={() => handleEditModal({ ...user, password: "" })}
+                                onClick={() => handleEditModal(user)}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                                 Edit
                               </button>
-                              <button
-                                className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-2"
-                                onClick={() => handleDelete(user.user_id)}
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                                Delete
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            )}
+                            <button
+                              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${
+                                user.status === 'active'
+                                  ? 'text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100'
+                                  : 'text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100'
+                              }`}
+                              onClick={() => handleDelete(user.user_id, user.status)}
+                            >
+                              {user.status === 'active' ? (
+                                <>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                  </svg>
+                                  Disable
+                                </>
+                              ) : (
+                                <>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Enable
+                                </>
+                              )}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -535,6 +660,18 @@ function AdminAllUsersList() {
           </form>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmationModal.isOpen}
+        onClose={() => setConfirmationModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmationModal.onConfirm}
+        title={confirmationModal.title}
+        message={confirmationModal.message}
+        confirmText={confirmationModal.confirmText}
+        confirmColor={confirmationModal.confirmColor}
+        icon={confirmationModal.icon}
+      />
     </div>
   );
 }

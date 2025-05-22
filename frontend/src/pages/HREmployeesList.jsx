@@ -63,10 +63,12 @@ const CustomDropdown = ({ value, onChange, departments }) => {
 function HREmployeeList() {
   const [employees, setEmployees] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [editModal, setEditModal] = useState(false);
+  const [viewModal, setViewModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [departments, setDepartments] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const fetchDepartments = async () => {
     try {
@@ -87,85 +89,53 @@ function HREmployeeList() {
     fetchDepartments();
   }, []);
 
-  const handleDelete = async (user_id) => {
-    if (window.confirm("Are you sure you want to delete this employee?")) {
-      try {
-        const response = await axios.post(
-          `${API_URL}removeEmployee`,
-          {
-            user_id: user_id,
-          },
-          { withCredentials: true }
-        );
-
-        if (response.data.type === "success") {
-          alert(response.data.message);
-          fetchAllEmployees();
-        } else {
-          alert(response.data.message);
-          fetchAllEmployees();
-        }
-      } catch (error) {
-        console.error("Error deleting employee:", error);
-        alert("Failed to delete employee");
-      }
-    }
-  };
-
-  const handleEditModal = async (employee) => {
-    setEditModal(true);
+  const handleViewModal = async (employee) => {
+    setViewModal(true);
     setSelectedEmployee(employee);
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setSelectedEmployee((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedEmployee((prev) => ({
-          ...prev,
-          avatar: reader.result.split(",")[1],
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleEditEmployee = async (e) => {
-    e.preventDefault();
-
-    await axios.post(
-      `${API_URL}updateEmployee`,
-      {
-        user_id: selectedEmployee.user_id,
-        avatar: selectedEmployee.avatar,
-        username: selectedEmployee.username,
-        newPass: selectedEmployee.password,
-        dept_id: selectedEmployee.dept_id,
-      },
-      { withCredentials: true }
-    );
-
-    setEditModal(false);
-    fetchAllEmployees();
-  };
+  const filteredEmployees = employees?.filter((employee) => {
+    const departmentMatch = selectedDepartment
+      ? employee.dept_name === selectedDepartment
+      : true;
+    const statusMatch = statusFilter === "all" 
+      ? true 
+      : employee.status === statusFilter;
+    const searchMatch = searchQuery.trim() === "" 
+      ? true 
+      : employee.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        employee.dept_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    return departmentMatch && statusMatch && searchMatch;
+  });
 
   return (
     <div className="max-w-7xl mx-auto">
       <div className="p-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-4">Employee Management</h1>
-          
-          {/* New Filter UI */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-gray-800">Employee Management</h1>
+            
+            {/* Search Bar */}
+            <div className="w-72">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search employees..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#260058]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Department Filter UI */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-600">Filter by Department:</span>
@@ -201,9 +171,48 @@ function HREmployeeList() {
                 </svg>
                 <span>
                   Showing: <span className="font-medium text-gray-900">
-                    {employees.filter(user => selectedDepartment ? user.dept_name === selectedDepartment : true).length}
+                    {filteredEmployees.length}
                   </span> employees
                 </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Status Filter UI */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-600">Filter by Status:</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setStatusFilter("all")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    statusFilter === "all"
+                      ? "bg-gray-900 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setStatusFilter("active")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    statusFilter === "active"
+                      ? "bg-green-600 text-white"
+                      : "bg-green-50 text-green-600 hover:bg-green-100"
+                  }`}
+                >
+                  Active
+                </button>
+                <button
+                  onClick={() => setStatusFilter("disabled")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    statusFilter === "disabled"
+                      ? "bg-red-600 text-white"
+                      : "bg-red-50 text-red-600 hover:bg-red-100"
+                  }`}
+                >
+                  Disabled
+                </button>
               </div>
             </div>
           </div>
@@ -222,16 +231,6 @@ function HREmployeeList() {
                         </svg>
                       </div>
                       <span className="text-base font-bold text-gray-800">Avatar</span>
-                    </div>
-                  </th>
-                  <th className="px-8 py-6 text-left">
-                    <div className="flex items-center gap-3">
-                      <div className="p-1.5 bg-gray-100 rounded-md">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                        </svg>
-                      </div>
-                      <span className="text-base font-bold text-gray-800">ID</span>
                     </div>
                   </th>
                   <th className="px-8 py-6 text-left">
@@ -271,19 +270,28 @@ function HREmployeeList() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                         </svg>
                       </div>
+                      <span className="text-base font-bold text-gray-800">Status</span>
+                    </div>
+                  </th>
+                  <th className="px-8 py-6 text-left">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 bg-gray-100 rounded-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </div>
                       <span className="text-base font-bold text-gray-800">Actions</span>
                     </div>
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {employees?.filter(
-                    (user) =>
-                      (selectedDepartment
-                        ? user.dept_name === selectedDepartment
-                        : true)
-                  ).map((employee) => (
-                  <tr key={employee.user_id} className="hover:bg-gray-50/50 transition-colors border-b border-gray-100 last:border-b-0">
+                {filteredEmployees.map((employee) => (
+                  <tr key={employee.user_id} 
+                      className={`hover:bg-gray-50/50 transition-colors border-b border-gray-100 last:border-b-0 ${
+                        employee.status === 'disabled' ? 'bg-gray-50' : ''
+                      }`}>
                     <td className="px-8 py-6">
                       <div className="flex justify-center">
                         {employee.avatar ? (
@@ -304,11 +312,6 @@ function HREmployeeList() {
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-                        #{employee.user_id}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6">
                       <div className="flex flex-col">
                         <span className="text-base font-semibold text-gray-800">{employee.username}</span>
                         <span className="text-sm text-gray-500">Employee</span>
@@ -326,27 +329,26 @@ function HREmployeeList() {
                       </div>
                     </td>
                     <td className="px-8 py-6">
+                      <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+                        employee.status === 'active' 
+                          ? 'bg-green-50 text-green-700 border border-green-100'
+                          : 'bg-red-50 text-red-700 border border-red-100'
+                      }`}>
+                        {employee.status === 'active' ? 'Active' : 'Disabled'}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6">
                       <div className="flex gap-3">
                         <button
                           className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                          onClick={() => handleEditModal({ ...employee, password: "" })}
+                          onClick={() => handleViewModal(employee)}
                         >
                           <div className="flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
-                            Edit
-                          </div>
-                        </button>
-                        <button
-                          className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                          onClick={() => handleDelete(employee.user_id)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Delete
+                            View
                           </div>
                         </button>
                       </div>
@@ -359,22 +361,22 @@ function HREmployeeList() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* View Modal */}
       <div
         className={`fixed inset-0 z-50 flex items-center justify-center ${
-          editModal ? "" : "hidden"
+          viewModal ? "" : "hidden"
         }`}
         aria-modal="true"
         role="dialog"
       >
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
-          onClick={() => setEditModal(false)}
+          onClick={() => setViewModal(false)}
           aria-hidden="true"
         />
         <div className="relative z-50 w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
-          <h3 className="text-2xl font-semibold text-gray-800 mb-6">Edit Employee</h3>
-          <form onSubmit={(e) => handleEditEmployee(e)} className="space-y-6">
+          <h3 className="text-2xl font-semibold text-gray-800 mb-6">Employee Details</h3>
+          <div className="space-y-6">
             <div>
               <div className="mb-4 flex justify-center">
                 <div className="w-28 h-28 rounded-full border-4 border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden">
@@ -389,17 +391,6 @@ function HREmployeeList() {
                   )}
                 </div>
               </div>
-              <label className="block mb-2 text-sm font-medium text-gray-700">
-                Update Avatar
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                id="avatar"
-                name="avatar"
-                onChange={handleFileChange}
-                className="w-full px-4 py-2 text-sm text-gray-700 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#260058] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
-              />
             </div>
 
             <div>
@@ -407,28 +398,9 @@ function HREmployeeList() {
                 Username
               </label>
               <input
-                id="username"
-                name="username"
-                value={selectedEmployee?.username}
-                onChange={handleChange}
-                className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#260058]"
-                placeholder="Enter username"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-700">
-                New Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                value={selectedEmployee?.password}
-                onChange={handleChange}
-                className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#260058]"
-                placeholder="Leave blank to keep current password"
+                value={selectedEmployee?.username || ""}
+                className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50"
+                disabled
               />
             </div>
 
@@ -436,41 +408,36 @@ function HREmployeeList() {
               <label className="block mb-2 text-sm font-medium text-gray-700">
                 Department
               </label>
-              <p className="text-sm text-gray-500 mb-2">
-                Current: <span className="font-medium text-gray-900">{departments.find((d) => d.dept_name === selectedEmployee?.dept_name)?.dept_name || "Not Assigned"}</span>
-              </p>
-              <select
-                id="department"
-                name="dept_id"
-                value={selectedEmployee?.dept_id || ""}
-                onChange={handleChange}
-                className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#260058] bg-white"
-              >
-                <option value="">Select Department</option>
-                {departments.map((dept) => (
-                  <option key={dept.dept_id} value={dept.dept_id}>
-                    {dept.dept_name}
-                  </option>
-                ))}
-              </select>
+              <input
+                value={selectedEmployee?.dept_name || "Not Assigned"}
+                className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50"
+                disabled
+              />
+            </div>
+
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                Status
+              </label>
+              <div className={`w-full px-4 py-2 text-sm rounded-lg ${
+                selectedEmployee?.status === 'active'
+                  ? 'bg-green-50 text-green-700 border border-green-100'
+                  : 'bg-red-50 text-red-700 border border-red-100'
+              }`}>
+                {selectedEmployee?.status === 'active' ? 'Active' : 'Disabled'}
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
               <button
                 type="button"
-                onClick={() => setEditModal(false)}
+                onClick={() => setViewModal(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 text-sm font-medium text-white bg-[#260058] hover:bg-[#3e0091] rounded-lg transition-colors"
-              >
-                Save Changes
+                Close
               </button>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>
